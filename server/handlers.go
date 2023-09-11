@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mjneil/go-chunked-streaming-server/manifest"
 )
 
 // ChunkedResponseWriter Define a response writer
@@ -61,10 +63,12 @@ func GetHandler(waitingRequests *WaitingRequests, cors *Cors, basePath string, w
 
 	// Add chunked only if the file is not yet complete
 	if !f.eof {
+		log.Println("**************Sending Chunked******************")
 		w.Header().Set("Transfer-Encoding", "chunked")
 	}
 
 	w.WriteHeader(http.StatusOK)
+	log.Println("**************Sending******************")
 	io.Copy(ChunkedResponseWriter{w}, f.NewReadCloser(basePath, w))
 }
 
@@ -93,6 +97,9 @@ func PostHandler(waitingRequests *WaitingRequests, onlyRAM bool, cors *Cors, bas
 
 	maxAgeS := getMaxAgeOr(r.Header.Get("Cache-Control"), -1)
 	headers := getHeadersFiltered(r.Header)
+	log.Println("Transfer Encoding: ", r.Header.Get("Transfer-Encoding"))
+
+	log.Println("Headers: ", headers)
 
 	f := NewFile(name, headers, maxAgeS)
 
@@ -102,7 +109,18 @@ func PostHandler(waitingRequests *WaitingRequests, onlyRAM bool, cors *Cors, bas
 
 	// Start writing to file without holding lock so that GET requests can read from it
 	io.Copy(f, r.Body)
+	log.Printf("**************Writing****************** %s\n", name)
+
+	if strings.Contains(name, "mpd") {
+		go manifest.ProcessMpd(f.buffer)
+	}
+
 	r.Body.Close()
+	// This was an attempt to see when the file transfer ended - TODO
+	//defer func(){
+	//	log.Println("Closing file: ",name)
+	//	f.Close
+	//}()
 	f.Close()
 
 	if !onlyRAM {
@@ -112,7 +130,9 @@ func PostHandler(waitingRequests *WaitingRequests, onlyRAM bool, cors *Cors, bas
 		}
 	}
 	addCors(w, cors)
-	w.WriteHeader(http.StatusNoContent)
+	// Change next line to StatusContinue
+	//w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusContinue)
 
 	// Awake GET requests waiting (if there are any)
 	if waitingRequests != nil {
@@ -201,7 +221,7 @@ func getHeadersFiltered(headers http.Header) http.Header {
 	ret := headers.Clone()
 
 	// Clean up
-	ret.Del("User-Agent")
+	//ret.Del("User-Agent")
 
 	return ret
 }
