@@ -41,11 +41,9 @@ func ProcessMpd(b []byte) {
 
 	mpd, err := decodeManifest(b)
 	if err != nil {
-		fmt.Printf("Error decoding manfest: %v", err)
+		log.Printf("&&&&&&&&&&&&&&&&&& Error decoding manfest: %v", err)
 		return
 	}
-
-	expandSegmentTimeline(mpd)
 
 	//log.Println(mpd)
 	log.Println("Publisth Time: ", mpd.PublishTime)
@@ -66,7 +64,9 @@ func ProcessMpd(b []byte) {
 		data = data + fmt.Sprintln()
 	}
 
-	log.Println(data)
+	expandSegmentTimeline(mpd)
+
+	log.Println("Data: ", data)
 
 	lastMpdTime = *mpd.PublishTime
 	lastRecTime = receivedTime
