@@ -78,7 +78,7 @@ func HeadHandler(cors *Cors, w http.ResponseWriter, r *http.Request) {
 	f, ok := Files[r.URL.String()]
 	FilesLock.RUnlock()
 
-	addCors(w, cors)
+	//addCors(w, cors)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -97,9 +97,6 @@ func PostHandler(waitingRequests *WaitingRequests, onlyRAM bool, cors *Cors, bas
 
 	maxAgeS := getMaxAgeOr(r.Header.Get("Cache-Control"), -1)
 	headers := getHeadersFiltered(r.Header)
-	log.Println("Transfer Encoding: ", r.Header.Get("Transfer-Encoding"))
-
-	log.Println("Headers: ", headers)
 
 	f := NewFile(name, headers, maxAgeS)
 
@@ -109,18 +106,17 @@ func PostHandler(waitingRequests *WaitingRequests, onlyRAM bool, cors *Cors, bas
 
 	// Start writing to file without holding lock so that GET requests can read from it
 	io.Copy(f, r.Body)
-	log.Printf("**************Writing****************** %s\n", name)
+	//log.Printf("**************Writing****************** %s\n", name)
 
 	if strings.Contains(name, "mpd") {
 		go manifest.ProcessMpd(f.buffer)
 	}
+	//log.Printf("**************Closing****************** %s\n", name)
+	if strings.Contains(name, "m4s") && !(strings.Contains(name, "init")) {
+		go processBlocks(f)
+	}
 
 	r.Body.Close()
-	// This was an attempt to see when the file transfer ended - TODO
-	//defer func(){
-	//	log.Println("Closing file: ",name)
-	//	f.Close
-	//}()
 	f.Close()
 
 	if !onlyRAM {
@@ -129,7 +125,7 @@ func PostHandler(waitingRequests *WaitingRequests, onlyRAM bool, cors *Cors, bas
 			log.Fatalf("Error saving to disk: %v", err)
 		}
 	}
-	addCors(w, cors)
+	//addCors(w, cors)
 	// Change next line to StatusContinue
 	//w.WriteHeader(http.StatusNoContent)
 	w.WriteHeader(http.StatusContinue)
@@ -151,7 +147,7 @@ func DeleteHandler(onlyRAM bool, cors *Cors, basePath string, w http.ResponseWri
 	f, ok := Files[r.URL.String()]
 	FilesLock.RUnlock()
 
-	addCors(w, cors)
+	//addCors(w, cors)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -172,7 +168,7 @@ func DeleteHandler(onlyRAM bool, cors *Cors, basePath string, w http.ResponseWri
 func OptionsHandler(cors *Cors, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Transfer-Encoding", "chunked")
 
-	addCors(w, cors)
+	//addCors(w, cors)
 	w.WriteHeader(http.StatusNoContent)
 }
 

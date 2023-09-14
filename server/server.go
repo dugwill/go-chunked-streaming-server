@@ -39,7 +39,7 @@ func StartHTTPServer(basePath string, port int, certFilePath string, keyFilePath
 
 	r.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer w.(http.Flusher).Flush()
-		log.Printf("%s %s Headers: %v", r.Method, r.URL.String(), r.Header)
+		log.Printf("%s %s", r.Method, r.URL.String())
 		switch r.Method {
 		case http.MethodGet:
 			GetHandler(waitingRequests, cors, basePath, w, r)

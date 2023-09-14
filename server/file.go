@@ -30,6 +30,7 @@ type FileReadCloser struct {
 
 // Read Reads bytes from filereader
 func (r *FileReadCloser) Read(p []byte) (int, error) {
+	log.Println("**************** Reading ****************")
 	r.File.lock.RLock()
 	defer r.File.lock.RUnlock()
 	if r.offset >= len(r.File.buffer) {
@@ -55,6 +56,13 @@ type File struct {
 	onDisk     bool
 	receivedAt time.Time
 	maxAgeS    int64
+	buffBlocks []buffBlock
+}
+
+// buffBlock stores info about the blocks of data received in a CTE transfer
+type buffBlock struct {
+	t    time.Time
+	size int
 }
 
 // NewFile Creates a new file
@@ -68,6 +76,7 @@ func NewFile(name string, headers http.Header, maxAgeS int64) *File {
 		onDisk:     false,
 		receivedAt: time.Now(),
 		maxAgeS:    maxAgeS,
+		buffBlocks: []buffBlock{},
 	}
 
 	contentType := f.GetContentType()
@@ -96,7 +105,7 @@ func (f *File) NewReadCloser(baseDir string, w http.ResponseWriter) io.ReadClose
 		return file
 	}
 
-	fmt.Println("Reading from memory")
+	log.Println("Reading from memory")
 	return &FileReadCloser{
 		offset: 0,
 		w:      w,
@@ -115,9 +124,17 @@ func (f *File) Close() error {
 
 // Write Write bytes to a file
 func (f *File) Write(p []byte) (int, error) {
+	log.SetFlags(log.Lmicroseconds)
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.buffer = append(f.buffer, p...)
+
+	// Adding buffBlocks to track CTE and CMAF chunks
+	f.buffBlocks = append(f.buffBlocks, buffBlock{time.Now(), len(p)})
+	//log.Printf("**************Writing in Write******************%s, %d, %d", f.Name, len(p), len(f.buffBlocks))
+	//if strings.Contains(f.Name, "201") {
+	//	log.Println("Bytes: ", p)
+	//}
 	return len(p), nil
 }
 

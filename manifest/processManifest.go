@@ -91,7 +91,7 @@ func expandSegmentTimeline(m *dash.Mpd) {
 					currentSegments[i].T = currentSegments[i-1].T + currentSegments[i-1].D
 				}
 			}
-			log.Println("Segments: ", currentSegments)
+			//log.Println("Segments: ", currentSegments)
 			currentSegments = nil
 		}
 	}
